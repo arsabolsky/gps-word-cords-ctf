@@ -33,49 +33,61 @@ pattern that reveals the CTF flag.
 the challenge.
 
 **Sample Python Code for Extracting GPS Coordinates:**
+extract_cords.py
 
 ```python
 import os
-import piexif
+import csv
+from PIL import Image
+from PIL.ExifTags import TAGS, GPSTAGS
 
-def dms_to_decimal(dms, ref):
-    decimal = dms[0][0] / dms[0][1] + dms[1][0] / (dms[1][1] * 60) + 
-dms[2][0] / (dms[2][1] * 3600)
-    if ref in ['S', 'W']:
-        decimal = -decimal
-    return decimal
+def extract_gps_info(img):
+    exif_data = img._getexif()
+    gps_info = {}
+    if exif_data:
+        for tag, value in exif_data.items():
+            tag_name = TAGS.get(tag, tag)
+            if tag_name == 'GPSInfo':
+                for gps_tag in value:
+                    sub_tag = GPSTAGS.get(gps_tag, gps_tag)
+                    gps_info[sub_tag] = value[gps_tag]
 
-def extract_gps_coordinates(img_path):
-    try:
-        exif_dict = piexif.load(img_path)
-    except FileNotFoundError:
-        print(f"File {img_path} not found.")
-        return
-
-    lat_dms = exif_dict["GPS"].get(piexif.GPSIFD.GPSLatitude)
-    lat_ref = exif_dict["GPS"].get(piexif.GPSIFD.GPSLatitudeRef)
-    lng_dms = exif_dict["GPS"].get(piexif.GPSIFD.GPSLongitude)
-    lng_ref = exif_dict["GPS"].get(piexif.GPSIFD.GPSLongitudeRef)
-
-    if lat_dms and lat_ref and lng_dms and lng_ref:
-        lat = dms_to_decimal(lat_dms, lat_ref.decode())
-        lng = dms_to_decimal(lng_dms, lng_ref.decode())
-        return lat, lng
+    if 'GPSLatitude' in gps_info and 'GPSLongitude' in gps_info:
+        return gps_info
     else:
         return None
 
-photo_directory = "photos"
-allowed_extensions = {".jpg", ".jpeg", ".png"}
-photo_files = sorted(
-    [file for file in os.listdir(photo_directory) if 
-os.path.splitext(file)[1].lower() in allowed_extensions]
-)
+def get_decimal_coordinates(info):
+    lat_data = info['GPSLatitude']
+    lat = float(lat_data[0]) + (float(lat_data[1]) / 60) + (float(lat_data[2]) / 3600)
+    if info['GPSLatitudeRef'] == 'S':
+        lat = -lat
 
-coordinates = []
-for photo in photo_files:
-    photo_path = os.path.join(photo_directory, photo)
-    coords = extract_gps_coordinates(photo_path)
-    if coords:
-        coordinates.append(coords)
-        print(f"Extracted GPS coordinates for {photo}: {coords}")
+    lon_data = info['GPSLongitude']
+    lon = float(lon_data[0]) + (float(lon_data[1]) / 60) + (float(lon_data[2]) / 3600)
+    if info['GPSLongitudeRef'] == 'W':
+        lon = -lon
+
+    return lat, lon
+
+def main():
+    folder_path = "Images"
+    csv_path = "gps_coordinates.csv"
+    
+    with open(csv_path, mode='w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["Latitude", "Longitude"])
+        
+        for filename in os.listdir(folder_path):
+            if filename.endswith(".jpeg") or filename.endswith(".jpg"):
+                image_path = os.path.join(folder_path, filename)
+                with Image.open(image_path) as img:
+                    gps_info = extract_gps_info(img)
+                    if gps_info:
+                        lat, lon = get_decimal_coordinates(gps_info)
+                        writer.writerow([lat, lon])
+
+if __name__ == '__main__':
+    main()
+
 
