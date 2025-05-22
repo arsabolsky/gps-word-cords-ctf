@@ -1,7 +1,4 @@
 # gps-word-cords-ctf
-**Title:** Extracting GPS Coordinates from Photos to Reveal the CTF Flag
-
-**Description:**
 In this Capture The Flag (CTF) challenge, the participants are given a 
 folder containing multiple photos. Each photo has GPS coordinates embedded 
 in its metadata. The objective of the challenge is to extract these 
